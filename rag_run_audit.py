@@ -1,8 +1,10 @@
 """
 RAG + LLM 事实验证 - 训练集审计：前N条训练集走完整流水线，检验检索/标签正确率，统计各模型调用次数。
 用法:
-  python rag_run_audit.py --eval-train 100 --workers 4   # 前100条train审计
-  python rag_run_audit.py --limit 0 --workers 4          # 全量 test
+  python rag_run_audit.py                                # 默认: 从 submission_test.csv 已有进度追加续跑
+  python rag_run_audit.py --next 0 --workers 4           # 追加至剩余全部
+  python rag_run_audit.py --fresh --workers 4            # 忽略进度, 全量重跑
+  python rag_run_audit.py --eval-train 100 --workers 4   # 审计前100条train, 总共1000条
 """
 import csv, sys, re, time, os, argparse
 from collections import Counter
@@ -11,6 +13,8 @@ from rag_fact_verify import load_corpus, make_idf, retrieve, tokenize, predict_l
 from rag_llm_api import OpinionAnalyzer
 
 csv.field_size_limit(sys.maxsize)
+
+os.chdir(os.path.dirname(os.path.abspath(__file__)))  # 数据文件相对本脚本定位, 任意目录启动均可
 
 # ====================== 可调参数 (在此修改) ======================
 # 追加模式: 从 submission_test.csv 已有行数往后预测 N 条; 0=预测剩余全部; 不足 N 则预测剩余所有
@@ -211,8 +215,8 @@ def main():
     ap.add_argument('--no-preprocess', action='store_true', help='关闭Llama辅助关键句提取')
     ap.add_argument('--model-id', default=None, help='指定判定模型ID(默认走流水线)')
     ap.add_argument('--out', default=None, help='test输出文件路径(默认按limit自动命名)')
-    ap.add_argument('--append', action='store_true',
-                    help='追加模式: 从 submission_test.csv 已有行数往后预测N条并追加')
+    ap.add_argument('--fresh', action='store_true',
+                    help='全新全量预测: 忽略 submission_test.csv 已有进度, 从 test 第1条重跑(默认追加续跑)')
     ap.add_argument('--next', type=int, default=PREDICT_NEXT_N,
                     help=f'追加模式预测条数(0=剩余全部; 默认用顶部 PREDICT_NEXT_N={PREDICT_NEXT_N})')
     ap.add_argument('--append-csv', default=APPEND_TO_CSV,
@@ -226,12 +230,6 @@ def main():
     print(f"已加载 {len(docs)} 篇文献, 用时 {time.time()-t0:.0f}s\n")
     analyzer = OpinionAnalyzer(use_freeflow=False)
 
-    if args.append:
-        run_append(docs, idf, analyzer, args.workers, args.max_sec_chars,
-                   args.next, args.append_csv,
-                   preprocess=not args.no_preprocess, model_id=args.model_id)
-        return
-
     if args.eval_train > 0:
         all_rows = list(csv.DictReader(open('train.csv', encoding='utf-8')))
         train = all_rows[args.train_start:args.train_start + args.eval_train]
@@ -244,6 +242,12 @@ def main():
         _cleanup_ckpt()
         model_stats(results, wall, args.workers)
         eval_train(results)
+        return
+
+    if not args.fresh:  # 默认: 追加续跑, 防止重复调用浪费额度
+        run_append(docs, idf, analyzer, args.workers, args.max_sec_chars,
+                   args.next, args.append_csv,
+                   preprocess=not args.no_preprocess, model_id=args.model_id)
         return
 
     test = list(csv.DictReader(open('test.csv', encoding='utf-8')))

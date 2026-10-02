@@ -58,13 +58,21 @@ class OpinionAnalyzer:
             }
         ) if or_key else None
 
+        gemini_key = _env_key("GEMINI_API_KEY")
+        self.clients["gemini"] = OpenAI(
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            api_key=gemini_key,
+            timeout=120,
+            max_retries=1,
+        ) if gemini_key else None
+
         fl_key = _env_key("FREELLM_API_KEY") or "EMPTY"  # 本地代理不校验, EMPTY仅为满足SDK非空要求
         self.clients["freellm"] = OpenAI(
             base_url="http://localhost:3000/v1",
             api_key=fl_key,
             timeout=60,
             max_retries=1,
-        )
+        ) if fl_key else None
 
     def _resolve_framework(self, model_cfg: Dict) -> List[str]:
         preferred = model_cfg.get("preferred", "freellm")
@@ -181,6 +189,13 @@ class OpinionAnalyzer:
         return results
 
 MODEL_PIPELINE: List[Dict] = [
+     {
+        "id": "gemini-3.6-flash",
+        "preferred": "gemini",
+        "reason": "Gemini 免费额度备用",
+        "max_tokens": 512,
+        "temp": 0.2
+    },
     {
         "id": "nvidia/nemotron-3-super-120b-a12b",
         "preferred": "nim",
@@ -195,6 +210,7 @@ MODEL_PIPELINE: List[Dict] = [
         "max_tokens": 256,
         "temp": 0.2
     },
+
     {
         "id": "auto",
         "preferred": "freellm",

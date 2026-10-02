@@ -3,9 +3,10 @@
 核心方法：仍为关键词/IDF模式匹配。从原始文献(original_data.csv)检索 review_id 与 section_name，
         替代原版本"用训练陈述匹配测试陈述"的错误检索目标，未引入大模型。
 """
-import csv, sys, re, math, ast, time
+import csv, sys, re, math, ast, time, os
 from collections import Counter, defaultdict
 
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 csv.field_size_limit(sys.maxsize)
 
 try:
