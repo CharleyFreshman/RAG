@@ -1,0 +1,64 @@
+题⽬⼆：基于⽂献的事实验证任务 
+项⽬背景 
+在学术研究中，科学家和学者需要验证他们的研究假设、观点和数据是否真实且符合已有的⽂献。⾃动
+化的事实验证⼯具提⾼⽂献审查的效率，确保研究结果的准确性。 
+请基于学习到的⼤模型以及RAG（Retrieval-Augmented Generation,检索增强⽣成）知识，完成要求的
+基于⽂献的事实验证任务。 
+项⽬⽬标 
+我们会给出原始⽂献数据集（qasper），包含⽂献id、⽂章题⽬title、⽂章内容full_text等⽂献内容数
+据，同时，还会提供相关训练数据和预测数据，包含基于对应⽂献段落内容⽣成的陈述等内容。请注
+意，该陈述可能是真实陈述也可能是虚假陈述，训练数据中会有专⻔的label列来记录陈述的真假。（具
+体可详⻅数据⽂件） 
+你需要做的是：使⽤⼤模型以及RAG技术，判断出陈述的真伪，输出正确的label标签，并且提供对应的
+⽂献id以及⽂献段落section_name（不要求提供段落内容paragraphs）。 
+以下会针对陈述的真伪各举⼀个例⼦说明： 
+例如：以下是review_id为1906.01040⽂献在Conclusion中的⼀个部分： 
+'Our work suggests that for a significant fraction of natural speech, human perception can be 
+altered by using subtle, learnable perturbations. This is an initial step towards exploring the 
+density of illusionable phenomenon for humans, and examining the extent to which human 
+perception may be vulnerable to security risks like those that adversarial examples present for 
+Msystems.' 
+陈述为：Human perception can be altered by using subtle, learnable perturbations for a 
+significant fraction of natural speech.
+那么这个陈述根据⽂本⼤意，容易判断为符合的陈述，因为它是⽂章的第⼀句的转述。 
+再例如，以下是review_id 为1912.13337 的⽂献在 Dataset Probes and Construction ::: WordNetQA 
+::: Perturbations and Semantic Clusters 部分的⽂本： 
+'Based on how we generate data, for each concept (i.e., atomic WordNet synset) and probe type 
+(i.e., definitions, hypernymy, etc.), we have a wide variety of questions related to that manipulate 
+1) the complexity of reasoning that is involved (e.g., the number of inferentiahops) and; 2) the 
+types of distractors (or distractor perturbations) that are employed. We call such sets semantic 
+clusters. As we describe in the next section, semantic clusters allow us to devise new types of 
+evaluation that reveal whether models have comprehensive and consistent knowledge of target 
+concepts (e.g., evaluating whether a model can correctly answer several questions associated with 
+a concept, as opposed to a few disjoint instances).' 
+陈述为：'Semantic clusters are used to evaluate whether models can correctly answer a few 
+disjoint instances of questions associated with a concept, rather than assessing comprehensive 
+and consistent knowledge of the target concept.' 
+在⽂本中，semantic clusters 的⽬的是为了评估模型是否具有⽬标概念的全⾯和⼀致的知识，⽽不仅仅
+是评估模型是否能够回答⼏个分离的实例问题。⽂本明确指出，semantic clusters ⽤于设计新的评估类
+型，旨在揭⽰模型是否对⽬标概念有全⾯⼀致的知识，⽽不是仅仅回答⼀些不相关的实例问题。
+所以这种以偏盖全的陈述，会被判定为错误的陈述，是不符合原⽂陈述。 
+请注意! ⽆论判断陈述真还是伪，都需要提供对应的⽂献id以及⽂献段落section_name，在评分过程
+中，⾸先会判断⽂献id和⽂献段落是否正确，只有正确⽆误后，才会对陈述的真伪进⾏进⼀步的判别 
+项⽬参与⽅式 
+具体的数据集及项⽬介绍，会发布在Kaggle竞赛平台上，你需要从以下链接进⼊该项⽬，注册账号并加
+⼊竞赛。（必须从下⾯的邀请链接中进⼊）： 
+项⽬邀请链接：
+https://www.kaggle.com/t/3afa71dfcf074ad7bd8190882b819dd4
+利⽤train.csv⽂件中的数据训练你的模型，然后对test.csv⽂件中的数据进⾏预测，以 submittion.csv格
+式上传到平 
+台。然后该平台会⾃动对你提交的结果进⾏评分，并显⽰出你当前的排名。
+评判标准 
+评价指标： ⾸先判断⽂献id和段落section是否都正确，再检查陈述判断是否准确。题⽬提供了测试
+集，以及测试样例，你需要按照submittion.csv的格式，将需要提交的答案，按照正确的格式上交。 
+注意！如果不按照正确格式上交，kaggle会⾃动检验并报错，请仔细检查提交结果。 
+注意事项 
+1. 本任务可以使⽤各类⼤模型以及相关RAG技术，欢迎同学们踊跃尝试。 
+2. 务必将Kaggle排⾏榜的名字，改为 SUFE-你的名字-你的学号，否则视为⽆效提交。 
+3. Kaggle显⽰指标为正确率得分，并仅接受正确率得分不低于0.3的提交。若正确率得分< 0.3，视为
+⽆效提交。 
+4. 在⽐赛进⾏期间，提交后可以获得公有测试集的准确率，仅代表当前排名成绩。⽐赛结束后，会⾃
+动在私有测试集上评估准确率，并作为最终成绩。 
+5. 早⻦加分：如果你在2025/12/16前提交了有效的结果（得分⾼于0.3），不论排名，课程总成绩+2
+分。 
+6. 有任何项⽬介绍上的疑问，欢迎邮件咨询助教
