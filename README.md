@@ -66,12 +66,11 @@ test 陈述 ──> 检索: IDF模式匹配 (rag_fact_verify.py)
 ```
 生效:
 1. NIM nemotron-3-super-120b-a12b  主力, ~2s/条 (ultra-550b/253b 已于 8/30 404下架)
-2. mistral mistral-small-latest    备用管线; key 已配置, 但免费层持续 429 限流(code 1300),
-                                   实际 0 判定, 额度刷新后自动生效(快速失败仅加一次跳转)
-
-3. openrouter nemotron-3-ultra:free 备用, 额度恢复自动生效
+2. openrouter nemotron-3-ultra:free 备用, 额度恢复自动生效
 
 已停用(代码中注释保留, 随时可恢复):
+- mistral mistral-small-latest    备用管线; key 已配置, 但免费层持续 429 限流(code 1300), 实际 0 判定, 额度刷新后自动生效(快速失败仅加一次跳转)
+                                   
 - gemini-3.6-flash   OpenAI兼容端点实测要求绑定结算(billing), 免费层不可用, 9/25 注释
 - freellm auto/gpt-oss-20b  代理在线但上游 provider key 全部失效(503 no_model_available), dashboard 补 key 后可恢复
 ```

@@ -205,13 +205,13 @@ MODEL_PIPELINE: List[Dict] = [
         "max_tokens": 512,
         "temp": 0.2
     },
-    {
-        "id": "mistral-small-latest",
-        "preferred": "mistral",
-        "reason": "Mistral 免费额度备用",
-        "max_tokens": 512,
-        "temp": 0.2
-    },
+    # {
+    #     "id": "ministral-3b-2512",
+    #     "preferred": "mistral",
+    #     "reason": "Mistral 免费额度备用，高 TPM/RPS，适合轻量通用任务",
+    #     "max_tokens": 512,
+    #     "temp": 0.2
+    # },
     {
         "id": "nvidia/nemotron-3-ultra-550b-a55b:free",
         "preferred": "openrouter",
