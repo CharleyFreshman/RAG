@@ -46,7 +46,7 @@ test 陈述 ──> 检索: IDF模式匹配 (rag_fact_verify.py)
 
 - **Prompt**：SYSTEM 规则（1=忠实转述 / 0=矛盾·夸大·改数字量词否定）+ 段落原文（截断 `--max-sec-chars`，默认 3500 字符）+ 陈述；要求只输出单字符，解析取响应中第一个 `[01]`。
 - **辅助提取**（可选，默认开）：先用 `auto` 模型抽取与陈述相关的关键句拼进主 prompt；freellm 平台停用后该步静默返回空串，不影响主判定。
-- **硬超时**：每次调用经 64 线程 `_HARD_POOL` 提交，`result(timeout=100)` 防单条挂起；超时/无 `[01]` → 回退 pattern 标签（`src` 列记录 `llm`/`pattern`）。
+- **硬超时**：每次调用经 64 线程 `_HARD_POOL` 提交，`result(timeout=150)` 防单条挂起；超时/无 `[01]` → 回退 pattern 标签（`src` 列记录 `llm`/`pattern`）。
 - **管线配置**：`MODEL_PIPELINE` 每项绑定唯一平台（`preferred`），`_resolve_framework` 只返回该平台——**禁止跨平台 fallback**，防止免费额度被错误平台消耗。参数：nemotron-super `temp=0.2, max_tokens=512`；openrouter 备份 `256`。
 
 ### 续跑与容错
@@ -69,8 +69,7 @@ test 陈述 ──> 检索: IDF模式匹配 (rag_fact_verify.py)
 2. openrouter nemotron-3-ultra:free 备用, 额度恢复自动生效
 
 已停用(代码中注释保留, 随时可恢复):
-- mistral mistral-small-latest    备用管线; key 已配置, 但免费层持续 429 限流(code 1300), 实际 0 判定, 额度刷新后自动生效(快速失败仅加一次跳转)
-                                   
+- mistral mistral-small-latest    备用管线; key 已配置, 但免费层持续 429 限流(code 1300), 实际 0 判定, 额度刷新后自动生效(快速失败仅加一次跳转)                           
 - gemini-3.6-flash   OpenAI兼容端点实测要求绑定结算(billing), 免费层不可用, 9/25 注释
 - freellm auto/gpt-oss-20b  代理在线但上游 provider key 全部失效(503 no_model_available), dashboard 补 key 后可恢复
 ```
@@ -109,4 +108,4 @@ python rag_run_audit.py --fresh --workers 4
 4. **解析**：judge 取响应第一个 `[01]`；SYSTEM_PROMPT 要求只输出单字符，换 reasoning 模型前必须先验证输出不带推理回显。
 5. **平台静默跳过**：环境变量缺失 → client=None → "无可用客户端"被 `except: continue` 吞掉，流水线无任何提示地跳过该模型。排查某平台为何没被调用时，先查环境变量再查代理（诊断脚本: `test_freellm.py` / `test_gemini.py`）。
 6. **content=None**：NIM 偶发返回 `success=True` 但 `content=None`，解析处已加 `(content or '')` 保护，该条按失败回退 pattern。
-7. **Mistral 免费 429**：key 有效（`models.list` 正常）但 chat 全部 429 code 1300，间隔重试无效——非每秒节流，是免费层硬配额，按月刷新；管线中快速失败自动落到 NIM，无需改码。
+
