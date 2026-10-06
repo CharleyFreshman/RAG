@@ -42,7 +42,7 @@ class OpinionAnalyzer:
         self.clients["nim"] = OpenAI(
             base_url="https://integrate.api.nvidia.com/v1",
             api_key=nim_key,
-            timeout=120,
+            timeout=150,
             max_retries=1,
         ) if nim_key else None
 
@@ -50,7 +50,7 @@ class OpinionAnalyzer:
         self.clients["openrouter"] = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=or_key,
-            timeout=120,
+            timeout=150,
             max_retries=1,
             default_headers={
                 "HTTP-Referer": "https://your-site.com",
@@ -58,11 +58,19 @@ class OpinionAnalyzer:
             }
         ) if or_key else None
 
+        mistral_key = _env_key("MISTRAL_API_KEY")
+        self.clients["mistral"] = OpenAI(
+            base_url="https://api.mistral.ai/v1",
+            api_key=mistral_key,
+            timeout=150,
+            max_retries=1,
+        ) if mistral_key else None
+
         # gemini_key = _env_key("GEMINI_API_KEY")
         # self.clients["gemini"] = OpenAI(
         #     base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
         #     api_key=gemini_key,
-        #     timeout=120,
+        #     timeout=150,
         #     max_retries=1,
         # ) if gemini_key else None
 
@@ -137,7 +145,7 @@ class OpinionAnalyzer:
                 return {"success": True, "model": "freeflow-auto", "content": content}
             return {"success": False, "error": error}
 
-        # 主管线: MODEL_PIPELINE 顺序兜底(各模型只走自己指定的平台, 禁止跨平台fallback)
+        # 主管线: MODEL_PIPELINE 顺序兜底 (各模型只走指定的平台)
         models = MODEL_PIPELINE if model_id is None else [
             cfg for cfg in MODEL_PIPELINE if cfg["id"] == model_id
         ]
@@ -194,6 +202,13 @@ MODEL_PIPELINE: List[Dict] = [
         "id": "nvidia/nemotron-3-super-120b-a12b",
         "preferred": "nim",
         "reason": "主力: 推理质量好, 实测2s/条; ultra-550b/253b 8月30日下架",
+        "max_tokens": 512,
+        "temp": 0.2
+    },
+    {
+        "id": "mistral-small-latest",
+        "preferred": "mistral",
+        "reason": "Mistral 免费额度备用",
         "max_tokens": 512,
         "temp": 0.2
     },

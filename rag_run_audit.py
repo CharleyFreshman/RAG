@@ -18,7 +18,7 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))  # 数据文件相对本脚
 
 # ====================== 可调参数 (在此修改) ======================
 # 追加模式: 从 submission_test.csv 已有行数往后预测 N 条; 0=预测剩余全部; 不足 N 则预测剩余所有
-PREDICT_NEXT_N = 50
+PREDICT_NEXT_N = 100
 APPEND_TO_CSV = 'submission_test.csv'   # 追加结果的目标CSV
 TEST_CSV = 'test.csv'
 # =================================================================
@@ -38,7 +38,7 @@ Statement: {stmt}"""
 
 
 _HARD_POOL = ThreadPoolExecutor(max_workers=64)
-LLM_HARD_TIMEOUT = 120  # 单次调用硬超时(秒), 防止个别请求挂起
+LLM_HARD_TIMEOUT = 150  # 单次调用硬超时(秒), 防止个别请求挂起
 
 
 def preprocess_sec(analyzer, stmt, sec_text):
@@ -53,21 +53,22 @@ def preprocess_sec(analyzer, stmt, sec_text):
 
 
 def llm_label(analyzer, stmt, sec_text, max_sec_chars, preprocess=False, model_id=None):
-    """返回 (label|None, model, prompt_chars)"""
+    """返回 (label|None, model, prompt_chars)。失败自动重试一次, 再回退 pattern"""
     if not sec_text:
         return None, 'no_sec', 0
     key = preprocess_sec(analyzer, stmt, sec_text[:max_sec_chars]) if preprocess else ''
     prompt = PROMPT_TMPL.format(sec=sec_text[:max_sec_chars], stmt=stmt)
     if key:
         prompt += "\n\nAssistant-highlighted key sentences:\n" + key
-    try:
-        r = _HARD_POOL.submit(analyzer.analyze, prompt, model_id=model_id).result(timeout=LLM_HARD_TIMEOUT)
-    except Exception:
-        r = None
-    if r and r.get('success'):
-        m = re.search(r'[01]', r['content'].strip())
-        if m:
-            return int(m.group()), r['model'], len(prompt)
+    for _ in range(2):  # 重试一次, 吸收超时/限流/content=None 等瞬态故障
+        try:
+            r = _HARD_POOL.submit(analyzer.analyze, prompt, model_id=model_id).result(timeout=LLM_HARD_TIMEOUT)
+        except Exception:
+            r = None
+        if r and r.get('success'):
+            m = re.search(r'[01]', (r.get('content') or '').strip())
+            if m:
+                return int(m.group()), r['model'], len(prompt)
     return None, 'fail', len(prompt)
 
 
