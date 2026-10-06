@@ -23,6 +23,38 @@ test 陈述 ──> 检索: IDF模式匹配 (rag_fact_verify.py)
 | `rag_llm_api.py` | 多平台模型管线 `OpinionAnalyzer`，禁止跨平台 fallback |
 | `rag_run_audit.py` | 流水线（检索→LLM→审计），`run()` 并行 + 明细落盘 |
 
+## 技术细节
+
+### 数据格式
+
+- `original_data.csv`（QASPER 文献库）：`id, title, abstract, full_text`；`full_text` 是 Python dict 字面量字符串，用 `ast.literal_eval` 解析为 `{section_name: [...], paragraphs: [[...]]}`，逐节配对。
+- `train.csv`：`ans(陈述), review_id, section_name, label`（金标三元组）；`test.csv`：`ID, raw_input`。
+- 提交格式：`ID, review_id, section_name, label`。评分口径：review_id+section_name 全对才计检索分，再看 label。
+
+### 检索（rag_fact_verify.py）
+
+- **分词**：`[a-z]+` 正则、小写、长度>2、去 sklearn 英文停用词。
+- **IDF**：`log((N+1)/(df+1)) + 1`，df 按"词是否出现在该文档（title+abstract+全文）"统计。
+- **文献级打分**（V5）：`score = 0.5·doc覆盖 + 1.0·max(段落覆盖) + 0.5·title+abstract覆盖`，覆盖 = 查询词集中命中该索引的词的 IDF 之和；argmax 选文献，再在文献内按段落覆盖 argmax 选 section。
+- **无命中兜底**：`retrieve` 返回 None 时取语料首篇首节（保证提交行完整）。
+
+### Pattern 规则标签（LLM 失败时的回退）
+
+四个失真信号加权：数字缺失 −3、否定错配 −2、反转结构（rather than/instead of）未现 −3、量词夸大（all/only/most…陈述有而原文无）−3；`score ≥ −2` 判 1，否则判 0；检索文本为空强势判 0。train 网格搜索调参，label acc≈0.63。
+
+### LLM 判定（rag_run_audit.py + rag_llm_api.py）
+
+- **Prompt**：SYSTEM 规则（1=忠实转述 / 0=矛盾·夸大·改数字量词否定）+ 段落原文（截断 `--max-sec-chars`，默认 3500 字符）+ 陈述；要求只输出单字符，解析取响应中第一个 `[01]`。
+- **辅助提取**（可选，默认开）：先用 `auto` 模型抽取与陈述相关的关键句拼进主 prompt；freellm 平台停用后该步静默返回空串，不影响主判定。
+- **硬超时**：每次调用经 64 线程 `_HARD_POOL` 提交，`result(timeout=120)` 防单条挂起；超时/无 `[01]` → 回退 pattern 标签（`src` 列记录 `llm`/`pattern`）。
+- **管线配置**：`MODEL_PIPELINE` 每项绑定唯一平台（`preferred`），`_resolve_framework` 只返回该平台——**禁止跨平台 fallback**，防止免费额度被错误平台消耗。参数：nemotron-super `temp=0.2, max_tokens=512`；openrouter 备份 `256`。
+
+### 续跑与容错
+
+- **追加续跑**（默认）：`_count_done` 数 `submission_test.csv` 已有行数，从该行号往后预测 `--next N`（0=剩余全部），防重复烧额度；`--fresh` 忽略进度全量重跑。
+- **checkpoint**：并行结果每 25 条落盘 `ckpt_tmp.csv`（`.gitignore` 排除），正常结束即删除；train 审计先存明细 CSV 再统计，防统计崩溃丢结果。
+- **并行**：`--workers` 控制 `ThreadPoolExecutor` 并发，明细含 `t_retr/t_llm/model/src/pchars` 供事后审计。
+
 ## 实测结果
 
 - **检索**：train 全量 77.6%（训练100/101-200 两批 82%/72%）。金标文献有 **8% 不在语料中**，词面匹配上限≈92%；已测试 top2聚合/联合argmax/bigram/词干等 10 种变体，均无提升，词袋法到顶。想再提分只能上语义向量检索。
